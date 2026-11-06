@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Lantern OSINT Workbench</title>
+<link rel="stylesheet" href="css/app.css">
+<script>
+  // Apply the saved theme before first paint to avoid a flash.
+  try { var t = JSON.parse(localStorage.getItem('lantern-osint-v1') || '{}').settings; if (t && t.theme && t.theme !== 'system') document.documentElement.setAttribute('data-theme', t.theme); } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Navigation">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle cx="16" cy="16" r="6.5" fill="none" stroke="var(--accent)" stroke-width="2.5" opacity=".55"/><circle cx="16" cy="16" r="2.4" fill="var(--accent)"/></svg>
+      <div><b>Lantern</b><span>OSINT Workbench</span></div>
+    </div>
+    <nav id="nav"></nav>
+    <div class="sidebar-foot">Runs locally · no telemetry<br>Data stays in this browser</div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn mobile-only" id="navToggle" aria-label="Open navigation">☰</button>
+      <div class="case-switch">
+        <select id="caseSelect" aria-label="Active case"></select>
+        <button class="btn sm" id="newCaseBtn" title="Create a new case">+ Case</button>
+      </div>
+      <form id="quickForm" class="quick" autocomplete="off">
+        <input id="quickInput" spellcheck="false" placeholder="Quick pivot — paste an email, domain, IP, hash, username, wallet…   ( / )" aria-label="Quick pivot">
+      </form>
+      <div class="top-right">
+        <button id="modeBadge" class="badge" title="Toggle active lookups"></button>
+        <span id="utcClock" class="clock" title="Current time (UTC)"></span>
+        <button id="themeBtn" class="icon-btn" title="Theme" aria-label="Toggle theme">◐</button>
+      </div>
+    </header>
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+</div>
+<div id="toasts" aria-live="polite"></div>
+<div id="modalRoot"></div>
+
+<script src="js/core.js"></script>
+<script src="js/crypto.js"></script>
+<script src="js/detect.js"></script>
+<script src="js/pivots.js"></script>
+<script src="js/metadata.js"></script>
+<script src="js/views/case.js"></script>
+<script src="js/views/collect.js"></script>
+<script src="js/views/recon.js"></script>
+<script src="js/views/graph.js"></script>
+<script src="js/views/timeline.js"></script>
+<script src="js/views/analyze.js"></script>
+<script src="js/views/toolbox.js"></script>
+<script src="js/views/ops.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
