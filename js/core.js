@@ -107,6 +107,10 @@ const ICONS = {
   metadata: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   toolbox: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
   opsec: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  hypotheses: '<path d="M12 3v18M5 7h14M5 7l-3 7a3.5 3.5 0 0 0 6 0zM19 7l-3 7a3.5 3.5 0 0 0 6 0zM8 21h8"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  geo: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  playbooks: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21a2 2 0 0 0 2 2h13v-4M9 8h6M9 12h4"/>',
   settings: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
 };
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -204,10 +208,12 @@ function formDlg(title, fields, { ok = 'Save', wide = false, intro = '' } = {}) 
 
 // ---------------------------------------------------------------- state
 const STORE_KEY = 'lantern-osint-v1';
+/** Every third-party service the opt-in active lookups can contact. Shown wherever consent is asked. */
+const ACTIVE_SERVICES = 'Cloudflare / Google DNS-over-HTTPS, rdap.org, certspotter / crt.sh, ipinfo.io, archive.org, Shodan InternetDB, RIPEstat, GitHub, GitLab, Bluesky + plc.directory, Hacker News (Algolia), Keybase, Blockstream / mempool.space, MITRE CVE and FIRST EPSS';
 
 function newCase(name = 'Untitled investigation', description = '') {
   const t = nowISO();
-  return { id: uid(), name, description, status: 'open', created: t, updated: t, entities: [], links: [], events: [], evidence: [], notes: '', checklist: {}, log: [] };
+  return { id: uid(), name, description, status: 'open', created: t, updated: t, entities: [], links: [], events: [], evidence: [], notes: '', checklist: {}, log: [], hypotheses: [], ach: [], playbooks: {} };
 }
 function defaultState() {
   const c = newCase('My first investigation', 'Scope, objective and legal basis go here.');
@@ -217,8 +223,8 @@ function migrate(s) {
   if (!s || typeof s !== 'object' || !s.cases) return defaultState();
   s.settings = Object.assign({ activeLookups: false, theme: 'system', logPivots: true, autoLink: true }, s.settings || {});
   for (const c of Object.values(s.cases)) {
-    for (const k of ['entities', 'links', 'events', 'evidence', 'log']) if (!Array.isArray(c[k])) c[k] = [];
-    c.checklist = c.checklist || {}; c.notes = c.notes || '';
+    for (const k of ['entities', 'links', 'events', 'evidence', 'log', 'hypotheses', 'ach']) if (!Array.isArray(c[k])) c[k] = [];
+    c.checklist = c.checklist || {}; c.notes = c.notes || ''; c.playbooks = c.playbooks || {};
   }
   if (!s.cases[s.activeCaseId]) s.activeCaseId = Object.keys(s.cases)[0];
   if (!s.activeCaseId) { const c = newCase(); s.cases[c.id] = c; s.activeCaseId = c.id; }
@@ -360,14 +366,14 @@ const App = {
 
   // ---- chrome
   NAV: [
-    { group: 'Case', items: ['dashboard', 'entities', 'graph', 'timeline', 'evidence', 'notes', 'report'] },
+    { group: 'Case', items: ['dashboard', 'entities', 'graph', 'timeline', 'evidence', 'hypotheses', 'notes', 'report'] },
     { group: 'Collect', items: ['extractor', 'pivot', 'dorks', 'recon'] },
-    { group: 'Analyze', items: ['metadata', 'toolbox'] },
-    { group: 'Operate', items: ['opsec', 'settings'] },
+    { group: 'Analyze', items: ['metadata', 'mail', 'geo', 'toolbox'] },
+    { group: 'Operate', items: ['playbooks', 'opsec', 'settings'] },
   ],
   renderNav() {
     const c = this.case;
-    const counts = { entities: c.entities.length, graph: c.links.length, timeline: c.events.length, evidence: c.evidence.length };
+    const counts = { entities: c.entities.length, graph: c.links.length, timeline: c.events.length, evidence: c.evidence.length, hypotheses: c.hypotheses.length };
     $('#nav').innerHTML = this.NAV.map((g) => `<div class="nav-group"><h6>${esc(g.group)}</h6>${g.items.filter((id) => this.views[id]).map((id) => {
       const v = this.views[id];
       const n = counts[id];
@@ -387,7 +393,7 @@ const App = {
   },
   async toggleActive() {
     if (!this.settings.activeLookups) {
-      const ok = await confirmDlg('Active lookups let the Recon tools call public APIs (Cloudflare DNS-over-HTTPS, rdap.org, certspotter / crt.sh, ipinfo.io, archive.org) directly from this browser. Those services will see your IP address and what you queried. The target’s own servers are never contacted directly. Enable?', { title: 'Enable active lookups?', ok: 'Enable' });
+      const ok = await confirmDlg(`Active lookups let the Recon tools call public APIs directly from this browser: ${ACTIVE_SERVICES}. Those services will see your IP address and what you queried. The target’s own servers are never contacted directly. Enable?`, { title: 'Enable active lookups?', ok: 'Enable' });
       if (!ok) return;
     }
     this.settings.activeLookups = !this.settings.activeLookups;

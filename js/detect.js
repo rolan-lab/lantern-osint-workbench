@@ -6,7 +6,7 @@ const FAMILIES = {
   people:   { label: 'People & orgs',     slot: 1 },
   accounts: { label: 'Accounts & contact', slot: 2 },
   infra:    { label: 'Infrastructure',     slot: 3 },
-  crypto:   { label: 'Crypto',             slot: 4 },
+  crypto:   { label: 'Crypto & finance',   slot: 4 },
   places:   { label: 'Locations',          slot: 5 },
   media:    { label: 'Media & documents',  slot: 6 },
   files:    { label: 'Hashes & files',     slot: 7 },
@@ -24,8 +24,12 @@ const TYPES = {
   ipv4:     { label: 'IPv4',         fam: 'infra',    glyph: 'IP' },
   ipv6:     { label: 'IPv6',         fam: 'infra',    glyph: 'I6' },
   mac:      { label: 'MAC address',  fam: 'infra',    glyph: 'MA' },
+  asn:      { label: 'ASN',          fam: 'infra',    glyph: 'AS' },
+  tracker:  { label: 'Tracker ID',   fam: 'infra',    glyph: 'TR' },
   btc:      { label: 'Bitcoin',      fam: 'crypto',   glyph: '₿' },
-  eth:      { label: 'Ethereum',     fam: 'crypto',   glyph: 'Ξ' },
+  eth:      { label: 'Ethereum / EVM', fam: 'crypto', glyph: 'Ξ' },
+  wallet:   { label: 'Other wallet', fam: 'crypto',   glyph: 'W' },
+  iban:     { label: 'IBAN',         fam: 'crypto',   glyph: 'IB' },
   location: { label: 'Location',     fam: 'places',   glyph: 'LO' },
   image:    { label: 'Image',        fam: 'media',    glyph: 'IM' },
   document: { label: 'Document',     fam: 'media',    glyph: 'DC' },
@@ -49,6 +53,9 @@ function cleanValue(type, v) {
     case 'username': return v.replace(/^@/, '');
     case 'hash': case 'mac': case 'ipv6': return v.toLowerCase();
     case 'cve': return v.toUpperCase();
+    case 'asn': { const m = v.match(/^(?:AS)?\s*(\d{1,10})$/i); return m ? 'AS' + +m[1] : v.toUpperCase(); }
+    case 'tracker': return /^(?:ca-)?pub-\d+$/i.test(v) ? v.toLowerCase().replace(/^ca-/, '') : v.toUpperCase();
+    case 'iban': return v.toUpperCase().replace(/\s+/g, '');
     case 'location': { const m = v.match(/^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$/); return m ? `${+m[1]}, ${+m[2]}` : v; }
     default: return v;
   }
@@ -131,6 +138,29 @@ function parseCoords(s) {
   const lat = +m[1], lon = +m[2];
   return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
+/** IBAN structure + ISO 7064 mod-97 check. */
+function ibanValid(s) {
+  const v = String(s).toUpperCase().replace(/\s+/g, '');
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v)) return false;
+  const digits = (v.slice(4) + v.slice(0, 4)).replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+  let rem = 0;
+  for (const ch of digits) rem = (rem * 10 + +ch) % 97;
+  return rem === 1;
+}
+/** Non-BTC/EVM wallet formats. Returns the chain name, or '' when the string is not a recognised address. */
+const ALT_VERSIONS = { 0x30: 'Litecoin', 0x32: 'Litecoin (P2SH)', 0x1e: 'Dogecoin', 0x16: 'Dogecoin (P2SH)', 0x41: 'TRON', 0x4c: 'Dash', 0x10: 'Dash (P2SH)' };
+function altWallet(a) {
+  a = String(a).trim();
+  if (/^ltc1[02-9ac-hj-np-z]{11,71}$/.test(a)) return bech32Valid(a) ? 'Litecoin (SegWit)' : '';
+  if (/^[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}$/.test(a)) return 'Monero (format only — checksum not verified)';
+  if (/^t1[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)) return base58CheckValid(a, 26) ? 'Zcash (transparent)' : '';
+  if (/^[LMDTX9A7][1-9A-HJ-NP-Za-km-z]{25,34}$/.test(a) && base58CheckValid(a)) return ALT_VERSIONS[b58decode(a)[0]] || '';
+  return '';
+}
+const TRACKER_RX = /^(?:UA-\d{4,10}(?:-\d{1,4})?|G-[A-Z0-9]{8,12}|GTM-[A-Z0-9]{5,8}|AW-\d{8,11}|(?:ca-)?pub-\d{16})$/i;
+function trackerKind(v) {
+  return /^UA-/i.test(v) ? 'Google Analytics (Universal)' : /^G-/i.test(v) ? 'Google Analytics 4' : /^GTM-/i.test(v) ? 'Google Tag Manager' : /^AW-/i.test(v) ? 'Google Ads' : /pub-/i.test(v) ? 'Google AdSense publisher' : 'Tracker';
+}
 function phoneDigits(s) { return String(s).replace(/[^\d]/g, ''); }
 
 // ---------------------------------------------------------------- type detection for a single selector
@@ -142,10 +172,14 @@ function detectType(raw) {
   if (/^(mailto:)?[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(s)) return 'email';
   if (isIPv4(s)) return 'ipv4';
   if (isIPv6(s)) return 'ipv6';
+  if (/^AS\d{1,10}$/i.test(s)) return 'asn';
+  if (TRACKER_RX.test(s)) return 'tracker';
   if (/^(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i.test(s)) return 'mac';
   if (parseCoords(s) && /[.]/.test(s)) return 'location';
   if (/^0x[a-f0-9]{40}$/i.test(s)) return 'eth';
   if (/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/.test(s) && btcValid(s)) return 'btc';
+  if (altWallet(s)) return 'wallet';
+  if (/^[A-Z]{2}\d{2}[A-Z0-9 ]{11,40}$/i.test(s) && ibanValid(s)) return 'iban';
   if (hashAlgo(s)) return 'hash';
   if (isDomain(s)) return 'domain';
   if (/^(?:\+|00)?[\d\s().-]{7,20}$/.test(s) && phoneDigits(s).length >= 7 && phoneDigits(s).length <= 15 && /^[+(\d]/.test(s)) return 'phone';
@@ -169,6 +203,16 @@ const PROFILE_RX = [
   [/^(?:www\.)?threads\.(?:net|com)$/, /^\/@([A-Za-z0-9_.]{1,30})\/?$/, 'Threads'],
   [/^bsky\.app$/, /^\/profile\/([A-Za-z0-9.-]{3,253})\/?$/, 'Bluesky'],
   [/^(?:www\.)?medium\.com$/, /^\/@([A-Za-z0-9_.]{1,40})\/?/, 'Medium'],
+  [/^(?:www\.)?gitlab\.com$/, /^\/([A-Za-z0-9_.-]{2,255})\/?$/, 'GitLab'],
+  [/^(?:www\.|m\.)?vk\.com$/, /^\/([A-Za-z0-9_.]{3,32})\/?$/, 'VK'],
+  [/^(?:www\.)?pinterest\.[a-z.]{2,6}$/, /^\/([A-Za-z0-9_]{3,30})\/?$/, 'Pinterest'],
+  [/^(?:www\.)?snapchat\.com$/, /^\/add\/([A-Za-z0-9_.-]{3,15})\/?/, 'Snapchat'],
+  [/^steamcommunity\.com$/, /^\/id\/([A-Za-z0-9_-]{2,32})\/?/, 'Steam'],
+  [/^keybase\.io$/, /^\/([a-z0-9_]{2,16})\/?$/, 'Keybase'],
+  [/^(?:www\.)?kick\.com$/, /^\/([A-Za-z0-9_]{4,25})\/?$/, 'Kick'],
+  [/^(?:www\.)?patreon\.com$/, /^\/([A-Za-z0-9_]{3,64})\/?$/, 'Patreon'],
+  [/^(?:www\.)?soundcloud\.com$/, /^\/([a-z0-9_-]{3,25})\/?$/, 'SoundCloud'],
+  [/^(?:[a-z0-9-]+\.)?(?:mastodon\.social|mastodon\.online|mstdn\.social|infosec\.exchange|hachyderm\.io|fosstodon\.org)$/, /^\/@([A-Za-z0-9_]{1,30})\/?$/, 'Mastodon'],
 ];
 const PROFILE_RESERVED = new Set(['search', 'home', 'explore', 'login', 'signup', 'share', 'intent', 'hashtag', 'i', 'p', 'reel', 'reels', 'watch', 'status', 'settings', 'about', 'help', 'privacy', 'terms', 'notifications', 'messages', 'stories', 'features', 'pricing', 'orgs', 'topics', 'marketplace', 'groups', 'pages', 'events', 'joinchat', 'policies', 'directory', 'results', 'channel', 'tos', 'legal', 'jobs', 'company', 'feed', 'sharer.php', 'profile.php', 'watch', 'embed', 'download', 'tag', 'tags']);
 
@@ -217,6 +261,10 @@ function extractSelectors(text, { refangFirst = true, profiles = true } = {}) {
   each(/\bCVE-\d{4}-\d{4,7}\b/gi, (m) => add('cve', m[0]));
   each(/\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b/gi, (m) => add('mac', m[0]));
   each(/\b0x[a-f0-9]{40}\b/gi, (m) => add('eth', m[0]));
+  each(/\bAS([1-9]\d{0,9})\b/g, (m) => { if (+m[1] <= 4294967295) add('asn', m[0]); });
+  each(/(?<![\w-])(?:UA-\d{4,10}(?:-\d{1,4})?|G-[A-Z0-9]{8,12}|GTM-[A-Z0-9]{5,8}|AW-\d{8,11}|(?:ca-)?pub-\d{16})(?![\w-])/g, (m) => { if (!/^G-/.test(m[0]) || (/\d/.test(m[0]) && /[A-Z]/.test(m[0].slice(2)))) add('tracker', m[0], trackerKind(m[0])); });
+  each(/(?<![\w])(?:ltc1[02-9ac-hj-np-z]{11,71}|[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}|t1[1-9A-HJ-NP-Za-km-z]{33}|[LMDTX9A7][1-9A-HJ-NP-Za-km-z]{25,34})(?![\w])/g, (m) => { const chain = altWallet(m[0]); if (chain) add('wallet', m[0], chain.replace(/ \(format.*$/, '')); });
+  each(/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b/g, (m) => { if (ibanValid(m[0])) add('iban', m[0]); });
   each(/\b(?:bc1[ac-hj-np-z02-9]{11,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b/g, (m) => { if (btcValid(m[0])) add('btc', m[0]); });
   each(/(?<![\w$])(?:[a-f0-9]{128}|[a-f0-9]{64}|[a-f0-9]{40}|[a-f0-9]{32})(?![\w])/gi, (m) => {
     if (t.slice(Math.max(0, m.index - 2), m.index).toLowerCase() === '0x') return;
@@ -230,10 +278,12 @@ function extractSelectors(text, { refangFirst = true, profiles = true } = {}) {
 
   // Drop phone numbers that are just the national part of an international match (+1 (555)… vs (555)…).
   const phones = [...found.values()].filter((f) => f.type === 'phone').map((f) => phoneDigits(f.value));
+  const ibans = [...found.values()].filter((f) => f.type === 'iban').map((f) => f.value);
   for (const [k, f] of found) {
     if (f.type !== 'phone') continue;
     const d = phoneDigits(f.value);
     if (phones.some((p) => p.length > d.length && p.endsWith(d))) found.delete(k);
+    else if (ibans.some((i) => i.includes(d))) found.delete(k); // digit groups inside an IBAN are not a phone number
   }
   for (const f of found.values()) if (f.type === 'domain' && NOISE_DOMAINS.has(f.value)) { f.noise = true; f.note = f.note || 'common platform'; }
   const order = Object.keys(TYPES);
