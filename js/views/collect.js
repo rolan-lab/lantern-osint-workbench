@@ -121,6 +121,12 @@ function selectorInsights(type, v) {
   if (type === 'btc') out.push(['Checksum', btcValid(v) ? 'Valid' : 'Invalid'], ['Format', /^bc1p/i.test(v) ? 'Taproot (bech32m)' : /^bc1/i.test(v) ? 'SegWit (bech32)' : v[0] === '3' ? 'P2SH' : 'Legacy P2PKH']);
   if (type === 'url') { try { const u = new URL(v); out.push(['Host', u.hostname], ['Path', u.pathname]); if (u.search) out.push(['Query params', [...u.searchParams.keys()].join(', ')]); const tr = [...u.searchParams.keys()].filter((k) => /^(utm_|fbclid|gclid|igsh|si$|mc_eid|ref)/i.test(k)); if (tr.length) out.push(['Tracking params', tr.join(', ') + ' — can reveal the sharer/campaign']); } catch { /* ignore */ } }
   if (type === 'cve') { const y = +v.split('-')[1]; out.push(['Year assigned', y]); }
+  if (type === 'asn') out.push(['AS number', v.replace(/^AS/i, '')], ['Kind', +v.slice(2) >= 64512 && +v.slice(2) <= 65534 || +v.slice(2) >= 4200000000 ? 'Private-use ASN (RFC 6996) — not routed on the internet' : 'Public ASN']);
+  if (type === 'tracker') out.push(['Kind', trackerKind(v)], ['Why it matters', 'Sites that embed the same ID are usually run by the same account holder']);
+  if (type === 'wallet') out.push(['Chain', altWallet(v) || 'unrecognised format']);
+  if (type === 'iban') out.push(['Checksum', ibanValid(v) ? 'Valid (mod-97)' : 'Invalid'], ['Country', v.slice(0, 2)], ['Bank / account part (BBAN)', v.slice(4)], ['Grouped', v.replace(/(.{4})/g, '$1 ').trim()]);
+  if (type === 'eth') out.push(['Note', 'The same 0x address exists on every EVM chain (Ethereum, BSC, Polygon, Arbitrum, Base…) — check each']);
+  if (type === 'domain' && /\.onion$/.test(v)) out.push(['Tor onion service', /^[a-z2-7]{56}\.onion$/.test(v) ? 'v3 address — only reachable through Tor' : 'Not a valid v3 onion address (v2 was retired in 2021)']);
   return out;
 }
 const FREEMAIL = new Set(['gmail.com', 'googlemail.com', 'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'yahoo.com', 'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'proton.me', 'protonmail.com', 'pm.me', 'gmx.com', 'gmx.de', 'gmx.net', 'web.de', 'mail.com', 'yandex.ru', 'yandex.com', 'mail.ru', 'qq.com', '163.com', '126.com', 'tutanota.com', 'tuta.io', 'zoho.com', 'fastmail.com', 'hey.com', 'duck.com', 'mailfence.com', 'inbox.ru', 'bk.ru', 'list.ru', 'rambler.ru', 'naver.com', 'daum.net', 'libero.it', 'orange.fr', 'free.fr', 'laposte.net', 't-online.de', 'seznam.cz', 'wp.pl', 'o2.pl', 'interia.pl', 'rediffmail.com', 'cock.li', 'onionmail.org', 'skiff.com', 'guerrillamail.com', 'mailinator.com', 'temp-mail.org', '10minutemail.com']);
@@ -133,7 +139,7 @@ App.register({
     el.innerHTML = `
       ${viewHead('Pivot launcher', 'Turn one selector into every useful public lookup. Links open in new tabs with no referrer; nothing is sent until you click. Each click is written to the case activity log.')}
       <form class="card row" id="pvf" autocomplete="off">
-        <input id="pvq" class="grow mono" placeholder="email · domain · IP · URL · username · phone · hash · BTC/ETH · CVE · lat,lon · name" value="${esc(pvState.q)}" spellcheck="false" style="min-width:240px">
+        <input id="pvq" class="grow mono" placeholder="email · domain · IP · ASN · URL · username · phone · hash · wallet · IBAN · tracker ID · CVE · lat,lon · name" value="${esc(pvState.q)}" spellcheck="false" style="min-width:240px">
         <select id="pvt"><option value="">Auto-detect</option>${TYPE_OPTIONS.map(([k, l]) => `<option value="${k}" ${pvState.type === k ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
         <button class="btn primary">Pivot</button>
       </form>
@@ -142,7 +148,7 @@ App.register({
       const box = $('#pvout', el);
       const raw = pvState.q;
       if (!raw) {
-        const ex = [['email', 'jane.doe@example.com'], ['domain', 'example.com'], ['ipv4', '8.8.8.8'], ['username', 'torvalds'], ['phone', '+44 20 7946 0958'], ['hash', '44d88612fea8a8f36de82e1278abb02f'], ['btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'], ['location', '48.8584, 2.2945'], ['cve', 'CVE-2021-44228'], ['org', 'Example Corp']];
+        const ex = [['email', 'jane.doe@example.com'], ['domain', 'example.com'], ['ipv4', '8.8.8.8'], ['username', 'torvalds'], ['phone', '+44 20 7946 0958'], ['hash', '44d88612fea8a8f36de82e1278abb02f'], ['btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'], ['location', '48.8584, 2.2945'], ['cve', 'CVE-2021-44228'], ['asn', 'AS15169'], ['tracker', 'UA-12345678-1'], ['org', 'Example Corp']];
         box.innerHTML = `<div class="card"><h3>Try an example</h3><div class="links">${ex.map(([t, v]) => `<a class="lnk" data-ex="${esc(v)}" data-t="${t}"><span class="dot" style="background:${typeColorVar(t)}"></span>${esc(typeLabel(t))}: <span class="mono">${esc(v)}</span></a>`).join('')}</div>
           <p class="muted small" style="margin-bottom:0">Tip: press <span class="kbd">/</span> anywhere to jump to the quick-pivot bar.</p></div>`;
         return;
@@ -160,7 +166,8 @@ App.register({
             <button class="btn ghost" id="pvcopy">Copy</button></div>
           ${insights.length ? `<dl class="kv mt">${insights.map(([k, val]) => `<dt>${esc(k)}</dt><dd class="mono">${esc(val)}</dd>`).join('')}</dl>` : ''}
           ${related.length ? `<div class="row mt small"><span class="muted">Pivot further:</span>${related.map(([t, x]) => `<a class="lnk" data-ex="${esc(x)}" data-t="${t}"><span class="dot" style="background:${typeColorVar(t)}"></span>${esc(typeLabel(t))}: <span class="mono">${esc(x)}</span></a>`).join('')}</div>` : ''}
-          ${['domain', 'ipv4', 'ipv6'].includes(type) ? `<div class="row mt small"><span class="muted">Live data:</span><a class="lnk" data-recon="${esc(v)}">Open in Recon (DNS, RDAP, certificates)</a></div>` : ''}
+          ${RECON_TYPES.includes(type) ? `<div class="row mt small"><span class="muted">Live data:</span><a class="lnk" data-recon="${esc(v)}">Open in Recon (${{ domain: 'DNS, RDAP, certificates, mail posture', ipv4: 'owner, routing, exposed services', ipv6: 'owner, routing, exposed services', asn: 'holder, announced prefixes', username: 'GitHub, GitLab, Bluesky, Hacker News, Keybase', email: 'mail domain, GitHub commits', btc: 'balance, transactions, counterparties', cve: 'CVSS, KEV, EPSS' }[type]})</a></div>` : ''}
+          ${type === 'location' ? `<div class="row mt small"><span class="muted">Analysis:</span><a class="lnk" data-geo="${esc(v)}">Open in Geo &amp; sun (formats, distance, shadows)</a></div>` : ''}
           ${['url', 'domain'].includes(type) ? `<div class="row mt small"><span class="muted">Dorks:</span><a class="lnk" data-dork="${esc(type === 'url' ? hostOf(v) : v)}">Build search dorks for this domain</a></div>` : ''}
         </div>
         <div class="pivot-grid mt">
@@ -171,7 +178,8 @@ App.register({
       box.onclick = async (e) => {
         const a = e.target.closest('a,button'); if (!a) return;
         if (a.dataset.ex) { e.preventDefault(); pvState.q = a.dataset.ex; pvState.type = a.dataset.t || ''; $('#pvq', el).value = pvState.q; $('#pvt', el).value = pvState.type; draw(); return; }
-        if (a.dataset.recon) { e.preventDefault(); App.go('recon', { q: a.dataset.recon }); return; }
+        if (a.dataset.recon) { e.preventDefault(); App.go('recon', { q: a.dataset.recon, type }); return; }
+        if (a.dataset.geo) { e.preventDefault(); App.go('geo', { q: a.dataset.geo }); return; }
         if (a.dataset.dork) { e.preventDefault(); App.go('dorks', { target: a.dataset.dork }); return; }
         if (a.dataset.entity) { e.preventDefault(); entitySheet(a.dataset.entity); return; }
         if (a.id === 'pvcopy') { copyText(v); return; }
@@ -221,6 +229,32 @@ const DORKS = [
     ['Job posts (tech stack clues)', '"{t}" (site:greenhouse.io OR site:lever.co OR site:myworkdayjobs.com OR site:linkedin.com/jobs)'],
     ['Press releases & filings', '"{t}" (site:sec.gov OR site:prnewswire.com OR site:businesswire.com OR site:globenewswire.com)'],
     ['Presentations', '"{t}" (filetype:pptx OR filetype:ppt OR site:slideshare.net OR site:speakerdeck.com)'],
+    ['Org charts & staff lists', '"{t}" ("org chart" OR "staff directory" OR "phone list" OR "team") (filetype:pdf OR filetype:xlsx)'],
+    ['Tenders & contracts', '"{t}" (tender OR procurement OR "contract award" OR RFP) filetype:pdf'],
+  ] },
+  { cat: 'Exposure of your own domain (defensive)', items: [
+    ['Config & environment files', 'site:{t} (ext:env OR ext:ini OR ext:conf OR ext:cfg OR ext:yml OR ext:yaml OR ext:toml)'],
+    ['Database dumps & backups', 'site:{t} (ext:sql OR ext:bak OR ext:dump OR ext:old OR ext:backup OR ext:tar OR ext:gz OR ext:zip)'],
+    ['Log files', 'site:{t} (ext:log OR intitle:"index of" "access.log" OR "error.log")'],
+    ['Error messages & stack traces', 'site:{t} ("Fatal error" OR "Stack trace" OR "Warning: mysql" OR "SQL syntax" OR "Traceback (most recent call last)")'],
+    ['API docs & test endpoints', 'site:{t} (inurl:swagger OR inurl:api-docs OR inurl:graphql OR inurl:phpinfo OR intitle:"Swagger UI")'],
+    ['Dev / staging hosts', 'site:{t} (inurl:dev OR inurl:staging OR inurl:test OR inurl:uat OR inurl:beta) -inurl:developer'],
+    ['Secrets in public code', '"{t}" (password OR secret OR api_key OR apikey OR token OR "BEGIN PRIVATE KEY") (site:github.com OR site:gitlab.com OR site:gist.github.com)'],
+    ['Shared documents', '"{t}" (site:docs.google.com OR site:drive.google.com OR site:1drv.ms OR site:dropbox.com OR site:box.com)'],
+    ['Confidential-marked documents', 'site:{t} ("confidential" OR "internal use only" OR "not for distribution") (filetype:pdf OR filetype:docx OR filetype:xlsx OR filetype:pptx)'],
+  ] },
+  { cat: 'Email address / phone', items: [
+    ['Exact mentions', '"{t}"'],
+    ['In documents', '"{t}" (filetype:pdf OR filetype:xlsx OR filetype:csv OR filetype:docx OR filetype:txt)'],
+    ['Classifieds & marketplaces', '"{t}" (site:craigslist.org OR site:gumtree.com OR site:olx.com OR site:ebay.com OR site:facebook.com/marketplace)'],
+    ['Paste & leak mentions', '"{t}" (site:pastebin.com OR site:rentry.co OR site:justpaste.it OR site:controlc.com)'],
+    ['Social profiles', '"{t}" (site:facebook.com OR site:instagram.com OR site:linkedin.com OR site:x.com OR site:vk.com)'],
+  ] },
+  { cat: 'Location / event', items: [
+    ['Photos & posts mentioning', '"{t}" (site:flickr.com OR site:instagram.com OR site:x.com OR site:reddit.com OR site:tiktok.com)'],
+    ['Video', '"{t}" (site:youtube.com OR site:vimeo.com OR site:rumble.com OR site:t.me)'],
+    ['Local news', '"{t}" (news OR police OR incident OR witness)'],
+    ['Webcams', '"{t}" (webcam OR "live cam" OR "live stream")'],
   ] },
 ];
 function buildDork(s) {

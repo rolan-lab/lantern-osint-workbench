@@ -22,7 +22,7 @@ const OPSEC_ITEMS = [
 ];
 
 // ---------------------------------------------------------------- report
-const rpState = { sections: { summary: true, entities: true, links: true, timeline: true, evidence: true, notes: true, log: false }, defang: false };
+const rpState = { sections: { summary: true, hypotheses: true, entities: true, links: true, timeline: true, evidence: true, notes: true, log: false }, defang: false };
 const DEFANG_TYPES = new Set(['url', 'domain', 'email', 'ipv4', 'ipv6']);
 const mdCell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 
@@ -39,6 +39,7 @@ function buildReport(c, opt) {
     const done = OPSEC_ITEMS.filter((i) => c.checklist[i.id]).length;
     L.push(`- Methodology checklist: ${done}/${OPSEC_ITEMS.length} steps completed`, '');
   }
+  if (opt.sections.hypotheses) L.push(...achMarkdown(c));
   if (opt.sections.entities && c.entities.length) {
     L.push('## Entities', '');
     const order = Object.keys(TYPES);
@@ -69,6 +70,30 @@ function buildReport(c, opt) {
   if (opt.sections.log && c.log.length) { L.push('## Research activity log', ''); [...c.log].reverse().forEach((l) => L.push(`- ${fmtUTC(l.t)} — ${opt.defang ? defang(l.msg) : l.msg}`)); L.push(''); }
   L.push('---', `*Generated with Lantern OSINT Workbench.${opt.defang ? ' Indicators are defanged.' : ''} Source grades use the Admiralty system (reliability A–F, credibility 1–6).*`);
   return L.join('\n');
+}
+
+/** STIX 2.1 bundle: one report plus cyber-observables for the technical selectors, and relationships between them. */
+function buildStix(c) {
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => { const r = (Math.random() * 16) | 0; return (ch === 'x' ? r : (r & 3) | 8).toString(16); }));
+  const SCO = {
+    domain: (v) => ({ type: 'domain-name', value: v }), ipv4: (v) => ({ type: 'ipv4-addr', value: v }), ipv6: (v) => ({ type: 'ipv6-addr', value: v }),
+    url: (v) => ({ type: 'url', value: v }), email: (v) => ({ type: 'email-addr', value: v }), mac: (v) => ({ type: 'mac-addr', value: v.replace(/-/g, ':') }),
+    asn: (v) => ({ type: 'autonomous-system', number: +v.replace(/^AS/i, '') }), username: (v) => ({ type: 'user-account', account_login: v }),
+    hash: (v) => { const a = { 32: 'MD5', 40: 'SHA-1', 64: 'SHA-256', 128: 'SHA-512' }[v.length]; return a && /^[a-f0-9]+$/.test(v) ? { type: 'file', hashes: { [a]: v } } : null; },
+    btc: (v) => ({ type: 'x-crypto-wallet', value: v, chain: 'bitcoin' }), eth: (v) => ({ type: 'x-crypto-wallet', value: v, chain: 'evm' }),
+    cve: (v) => ({ type: 'vulnerability', name: v, external_references: [{ source_name: 'cve', external_id: v }] }),
+    person: (v) => ({ type: 'identity', name: v, identity_class: 'individual' }), org: (v) => ({ type: 'identity', name: v, identity_class: 'organization' }),
+  };
+  const now = nowISO(), ids = new Map(), objects = [];
+  for (const e of c.entities) {
+    const o = SCO[e.type]?.(e.value); if (!o) continue;
+    o.spec_version = '2.1'; o.id = `${o.type}--${uuid()}`;
+    if (o.type === 'vulnerability' || o.type === 'identity') { o.created = e.created || now; o.modified = now; if (e.notes) o.description = e.notes; if (e.tags?.length) o.labels = e.tags; }
+    ids.set(e.id, o.id); objects.push(o);
+  }
+  for (const l of c.links) { const a = ids.get(l.from), b = ids.get(l.to); if (a && b) objects.push({ type: 'relationship', spec_version: '2.1', id: `relationship--${uuid()}`, created: l.created || now, modified: now, relationship_type: (l.label || 'related-to').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'related-to', source_ref: a, target_ref: b }); }
+  const report = { type: 'report', spec_version: '2.1', id: `report--${uuid()}`, created: c.created, modified: now, name: c.name, description: c.description || '', published: now, report_types: ['threat-report'], object_refs: objects.map((o) => o.id) };
+  return { type: 'bundle', id: `bundle--${uuid()}`, objects: objects.length ? [report, ...objects] : [] };
 }
 
 /** Minimal Markdown → HTML for the subset the report uses (and typical notes). Input is escaped first. */
@@ -103,10 +128,10 @@ App.register({
   id: 'report', label: 'Report', icon: 'report',
   render(el) {
     const c = App.case;
-    const S = [['summary', 'Summary'], ['entities', 'Entities'], ['links', 'Relationships'], ['timeline', 'Timeline'], ['evidence', 'Evidence'], ['notes', 'Notes'], ['log', 'Activity log']];
+    const S = [['summary', 'Summary'], ['hypotheses', 'Hypotheses'], ['entities', 'Entities'], ['links', 'Relationships'], ['timeline', 'Timeline'], ['evidence', 'Evidence'], ['notes', 'Notes'], ['log', 'Activity log']];
     el.innerHTML = `
       ${viewHead('Report', 'Generate a structured case report. Markdown for wikis and tickets, a printable HTML page (print → PDF), or a full JSON export for hand-off.',
-        `<button class="btn" id="rjson">Export case JSON</button><button class="btn" id="rhtml">Download HTML</button><button class="btn" id="rmd">Download .md</button><button class="btn primary" id="rcopy">Copy Markdown</button>`)}
+        `<button class="btn" id="rstix" title="Indicators as a STIX 2.1 bundle for threat-intel platforms (MISP, OpenCTI…)">STIX 2.1</button><button class="btn" id="rjson">Export case JSON</button><button class="btn" id="rhtml">Download HTML</button><button class="btn" id="rmd">Download .md</button><button class="btn primary" id="rcopy">Copy Markdown</button>`)}
       <div class="card row">${S.map(([k, l]) => `<label class="check"><input type="checkbox" data-sec="${k}" ${rpState.sections[k] ? 'checked' : ''}> ${l}</label>`).join('')}<span class="spacer"></span><label class="check"><input type="checkbox" id="rdef" ${rpState.defang ? 'checked' : ''}> Defang indicators</label><button class="btn ghost" id="rprint">Print / PDF</button></div>
       <div class="grid g2 mt"><div class="card"><h3>Markdown</h3><pre class="out" id="rmdout" style="max-height:70vh"></pre></div><div class="card"><h3>Preview</h3><iframe id="rprev" title="Report preview" sandbox="allow-same-origin allow-modals" style="width:100%;height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe></div></div>`;
     let md = '';
@@ -116,6 +141,7 @@ App.register({
     $('#rmd', el).onclick = () => download(`${slug(c.name)}-report.md`, md, 'text/markdown');
     $('#rhtml', el).onclick = () => download(`${slug(c.name)}-report.html`, reportHtml(c.name, md), 'text/html');
     $('#rjson', el).onclick = () => exportCase(c);
+    $('#rstix', el).onclick = () => { const b = buildStix(c); if (b.objects.length < 2) return toast('No indicator-type entities to export', 'error'); download(`${slug(c.name)}-stix.json`, JSON.stringify(b, null, 2), 'application/json'); App.touch(`Exported STIX bundle (${b.objects.length - 1} objects)`); };
     $('#rprint', el).onclick = () => { const f = $('#rprev', el); try { f.contentWindow.focus(); f.contentWindow.print(); } catch { toast('Download the HTML and print it from your browser', 'error'); } };
     draw();
   },
@@ -148,7 +174,7 @@ App.register({
             <li>No analytics, fonts, CDNs or third-party scripts. Data lives in this browser’s local storage only.</li>
             <li>In <b>Passive</b> mode the app makes no network requests at all.</li>
             <li>Pivot links open in new tabs with no referrer. The sites you open <b>do</b> see your IP and query.</li>
-            <li><b>Active lookups</b> (Recon, lookalike checks) call public APIs, never the target directly.</li></ul></div>
+            <li><b>Active lookups</b> (Recon, lookalike checks) call public APIs, never the target directly: <span class="small">${esc(ACTIVE_SERVICES)}.</span></li></ul></div>
         </div>
       </div>`;
     el.addEventListener('change', (e) => { const k = e.target.dataset.check; if (k) { c.checklist[k] = e.target.checked; App.touch(e.target.checked ? `Checklist: ${OPSEC_ITEMS.find((i) => i.id === k).text}` : null); App.refresh(); } });

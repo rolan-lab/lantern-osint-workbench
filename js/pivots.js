@@ -306,6 +306,139 @@ const PIVOTS = {
     ] },
   ],
 };
+// ---- selector types added after the first release
+PIVOTS.asn = [
+  { group: 'Routing & ownership', items: [
+    ['Hurricane Electric BGP', 'https://bgp.he.net/{raw}'],
+    ['bgp.tools', 'https://bgp.tools/as/{asnum}'],
+    ['RIPEstat', 'https://stat.ripe.net/{raw}'],
+    ['PeeringDB', 'https://www.peeringdb.com/asn/{asnum}'],
+    ['IPinfo', 'https://ipinfo.io/{raw}'],
+    ['Cloudflare Radar', 'https://radar.cloudflare.com/as{asnum}'],
+  ] },
+  { group: 'Exposed hosts & reputation', items: [
+    ['Shodan (asn:)', 'https://www.shodan.io/search?query=asn%3A{raw}'],
+    ['Censys hosts', 'https://search.censys.io/search?resource=hosts&q=autonomous_system.asn%3A{asnum}'],
+    ['Spamhaus ASN-DROP list', 'https://www.spamhaus.org/drop/asndrop.json'],
+    ['Google (exact)', G('%22{q}%22')],
+  ] },
+];
+PIVOTS.tracker = [
+  { group: 'Sites sharing this ID', items: [
+    ['PublicWWW (source search)', 'https://publicwww.com/websites/%22{q}%22/'],
+    ['BuiltWith relationships', 'https://builtwith.com/relationships/tag/{q}'],
+    ['SpyOnWeb', 'https://spyonweb.com/{q}'],
+    ['AnalyzeID', 'https://analyzeid.com/id/{q}'],
+    ['DNSlytics reverse analytics', 'https://dnslytics.com/reverse-analytics', 'paste'],
+    ['urlscan.io search', 'https://urlscan.io/search/#%22{q}%22'],
+  ] },
+  { group: 'Search', items: [
+    ['Google (exact)', G('%22{q}%22')], ['Bing (exact)', 'https://www.bing.com/search?q=%22{q}%22'],
+    ['GitHub code', 'https://github.com/search?q=%22{q}%22&type=code'],
+  ] },
+];
+PIVOTS.wallet = [
+  { group: 'Explorers', items: [
+    ['Blockchair (multi-chain)', 'https://blockchair.com/search?q={q}'],
+    ['Tronscan (TRON)', 'https://tronscan.org/#/address/{q}'],
+    ['Litecoin Space (LTC)', 'https://litecoinspace.org/address/{q}'],
+    ['Dogechain (DOGE)', 'https://dogechain.info/address/{q}'],
+    ['Arkham Intel', 'https://intel.arkm.com/explorer/address/{q}'],
+  ] },
+  { group: 'Abuse & sanctions', items: [
+    ['Chainabuse reports', 'https://www.chainabuse.com/address/{q}'],
+    ['OFAC sanctions search', 'https://sanctionssearch.ofac.treas.gov/', 'paste'],
+    ['OpenSanctions', 'https://www.opensanctions.org/search/?q={q}'],
+    ['Google (exact)', G('%22{q}%22')],
+  ] },
+];
+PIVOTS.iban = [
+  { group: 'Validate & identify the bank', items: [
+    ['IBAN checker (iban.com)', 'https://www.iban.com/iban-checker', 'paste'],
+    ['OpenIBAN (bank code, BIC)', 'https://openiban.com/validate/{q}?getBIC=true&validateBankCode=true'],
+  ] },
+  { group: 'Mentions & due diligence', items: [
+    ['Google (exact)', G('%22{q}%22')], ['Bing (exact)', 'https://www.bing.com/search?q=%22{q}%22'],
+    ['OpenSanctions', 'https://www.opensanctions.org/search/?q={q}'],
+    ['OCCRP Aleph', 'https://aleph.occrp.org/search?q={q}'],
+  ] },
+];
+// ---- extra sources for existing types
+PIVOTS.domain.push({ group: 'More infrastructure intel', items: [
+  ['Cloudflare Radar', 'https://radar.cloudflare.com/domains/domain/{q}'],
+  ['host.io', 'https://host.io/{q}'],
+  ['DNSlytics', 'https://dnslytics.com/domain/{q}'],
+  ['Pulsedive', 'https://pulsedive.com/indicator/?ioc={q}'],
+  ['MXToolbox', 'https://mxtoolbox.com/SuperTool.aspx?action=mx%3a{q}&run=toolpage'],
+  ['DNSViz (DNSSEC)', 'https://dnsviz.net/d/{q}/dnssec/'],
+  ['FOFA', 'https://en.fofa.info/result?qbase64={fofa}'],
+  ['Wayback: every archived URL', 'https://web.archive.org/web/*/{q}/*'],
+  ['Wayback: robots.txt history', 'https://web.archive.org/web/*/{q}/robots.txt'],
+] });
+PIVOTS.ipv4.push({ group: 'Exposure, anonymizers & routing', items: [
+  ['Shodan InternetDB (JSON)', 'https://internetdb.shodan.io/{q}'],
+  ['Criminal IP', 'https://www.criminalip.io/asset/report/{q}'],
+  ['Pulsedive', 'https://pulsedive.com/indicator/?ioc={q}'],
+  ['Spur (VPN / proxy context)', 'https://spur.us/context/{q}'],
+  ['Tor ExoneraTor (was it a relay?)', 'https://metrics.torproject.org/exonerator.html?ip={q}&timestamp={recent}&lang=en'],
+  ['Cloudflare Radar', 'https://radar.cloudflare.com/ip/{q}'],
+  ['FOFA', 'https://en.fofa.info/result?qbase64={fofa}'],
+] });
+PIVOTS.email.push({ group: 'Code & reputation', items: [
+  ['GitHub commits by this email', 'https://github.com/search?q=author-email%3A{q}&type=commits'],
+  ['GitHub users (in:email)', 'https://github.com/search?q={q}+in%3Aemail&type=users'],
+  ['EmailRep (JSON)', 'https://emailrep.io/{q}'],
+  ['Mail domain in Recon-style tools (MXToolbox)', 'https://mxtoolbox.com/SuperTool.aspx?action=mx%3a{domain}&run=toolpage'],
+] });
+PIVOTS.username.push({ group: 'Code, archives & aggregators', items: [
+  ['GitHub commits by author', 'https://github.com/search?q=author%3A{q}&type=commits'],
+  ['IDCrawl', 'https://www.idcrawl.com/u/{q}'],
+  ['Wayback: X / Twitter profile', 'https://web.archive.org/web/*/twitter.com/{q}*'],
+  ['Wayback: Instagram profile', 'https://web.archive.org/web/*/instagram.com/{q}*'],
+  ['Namechk', 'https://namechk.com/', 'paste'],
+] });
+PIVOTS.location.push({ group: 'Live activity & terrain', items: [
+  ['Flightradar24', 'https://www.flightradar24.com/{lat},{lon}/10'],
+  ['MarineTraffic', 'https://www.marinetraffic.com/en/ais/home/centerx:{lon}/centery:{lat}/zoom:10'],
+  ['NASA FIRMS (active fires)', 'https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@{lon},{lat},10.0z'],
+  ['Copernicus Browser (Sentinel)', 'https://browser.dataspace.copernicus.eu/?zoom=14&lat={lat}&lng={lon}'],
+  ['Zoom Earth', 'https://zoom.earth/maps/satellite/#view={lat},{lon},14z'],
+  ['PeakVisor (mountain panorama)', 'https://peakvisor.com/panorama.html?lat={lat}&lng={lon}'],
+  ['ShadeMap (shadows)', 'https://shademap.app/@{lat},{lon},15z'],
+] });
+PIVOTS.person.push({ group: 'Ownership & influence', items: [
+  ['LittleSis (power networks)', 'https://littlesis.org/search?q={q}'],
+  ['Open Ownership register', 'https://register.openownership.org/search?q={q}'],
+  ['UK Companies House officers', 'https://find-and-update.company-information.service.gov.uk/search/officers?q={q}'],
+  ['Interpol Red Notices', 'https://www.interpol.int/How-we-work/Notices/Red-Notices/View-Red-Notices', 'paste'],
+] });
+PIVOTS.org.push({ group: 'Ownership & regional registries', items: [
+  ['Open Ownership register', 'https://register.openownership.org/search?q={q}'],
+  ['LittleSis', 'https://littlesis.org/search?q={q}'],
+  ['North Data (EU)', 'https://www.northdata.com/{q}'],
+  ['Pappers (France)', 'https://www.pappers.fr/recherche?q={q}'],
+  ['CourtListener', 'https://www.courtlistener.com/?q=%22{q}%22'],
+] });
+PIVOTS.cve.push({ group: 'Advisories & detection', items: [
+  ['OSV', 'https://osv.dev/list?q={q}'],
+  ['GitHub advisories', 'https://github.com/advisories?query={q}'],
+  ['CVE Details', 'https://www.cvedetails.com/cve/{q}/'],
+  ['Sploitus', 'https://sploitus.com/?query={q}#exploits'],
+  ['Nuclei templates', 'https://github.com/search?q=repo%3Aprojectdiscovery%2Fnuclei-templates+{q}&type=code'],
+] });
+PIVOTS.hash.push({ group: 'More sandboxes', items: [
+  ['Joe Sandbox', 'https://www.joesandbox.com/search?q={q}'],
+  ['Kaspersky OpenTIP', 'https://opentip.kaspersky.com/{q}/'],
+  ['Pulsedive', 'https://pulsedive.com/indicator/?ioc={q}'],
+] });
+PIVOTS.btc.push({ group: 'More tracing', items: [
+  ['Blockchair', 'https://blockchair.com/bitcoin/address/{q}'],
+  ['BitcoinWhosWho', 'https://www.bitcoinwhoswho.com/address/{q}'],
+] });
+PIVOTS.eth.push({ group: 'More tracing', items: [
+  ['MetaSleuth (fund flow)', 'https://metasleuth.io/result/eth/{q}'],
+  ['Blockchair', 'https://blockchair.com/ethereum/address/{q}'],
+] });
 PIVOTS.ipv6 = PIVOTS.ipv4;
 PIVOTS.document = PIVOTS.keyword;
 PIVOTS.other = PIVOTS.keyword;
@@ -323,6 +456,9 @@ function pivotVars(type, value) {
   if (type === 'cve') vars.cvenum = v.replace(/^CVE-/i, '');
   if (type === 'hash') { const algo = { 32: 'md5', 40: 'sha1', 64: 'sha256' }[v.length] || 'sha256'; vars.bazaar = encodeURIComponent(`${algo}:${v}`); }
   if (type === 'username') vars.q = encodeURIComponent(v.replace(/^@/, ''));
+  if (type === 'asn') vars.asnum = v.replace(/^AS/i, '');
+  if (type === 'domain') vars.fofa = encodeURIComponent(b64encode(`domain="${v}"`));
+  if (type === 'ipv4' || type === 'ipv6') { vars.fofa = encodeURIComponent(b64encode(`ip="${v}"`)); vars.recent = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10); }
   return vars;
 }
 const fillTemplate = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');

@@ -6,6 +6,14 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <title>Lantern OSINT Workbench</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lantern">
 <link rel="stylesheet" href="css/app.css">
 <script>
   // Apply the saved theme before first paint to avoid a flash.
@@ -31,7 +39,7 @@
         <button class="btn sm" id="newCaseBtn" title="Create a new case">+ Case</button>
       </div>
       <form id="quickForm" class="quick" autocomplete="off">
-        <input id="quickInput" spellcheck="false" placeholder="Quick pivot — paste an email, domain, IP, hash, username, wallet…   ( / )" aria-label="Quick pivot">
+        <input id="quickInput" spellcheck="false" placeholder="Quick pivot — paste an email, domain, IP, hash, username, wallet, coordinates…   ( / )" aria-label="Quick pivot">
       </form>
       <div class="top-right">
         <button id="modeBadge" class="badge" title="Toggle active lookups"></button>
@@ -49,6 +57,7 @@
 <script src="js/crypto.js"></script>
 <script src="js/detect.js"></script>
 <script src="js/pivots.js"></script>
+<script src="js/geo.js"></script>
 <script src="js/metadata.js"></script>
 <script src="js/views/case.js"></script>
 <script src="js/views/collect.js"></script>
@@ -57,6 +66,10 @@
 <script src="js/views/timeline.js"></script>
 <script src="js/views/analyze.js"></script>
 <script src="js/views/toolbox.js"></script>
+<script src="js/views/tools2.js"></script>
+<script src="js/views/mail.js"></script>
+<script src="js/views/geoview.js"></script>
+<script src="js/views/analysis.js"></script>
 <script src="js/views/ops.js"></script>
 <script src="js/app.js"></script>
 </body>

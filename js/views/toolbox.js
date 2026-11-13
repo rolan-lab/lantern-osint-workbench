@@ -192,7 +192,7 @@ function decodeJWT(t) {
 
 // ---------------------------------------------------------------- view
 const tbState = { tab: 'codec', codecIn: '', codecOp: 'b64d', timeIn: '', idIn: '', netIn: '', domIn: '', hashIn: '', jwtIn: '', lookalike: null };
-const TB_TABS = [['codec', 'Encode / decode'], ['time', 'Time converter'], ['ids', 'ID → timestamp'], ['net', 'IP & CIDR'], ['domain', 'Domain & lookalikes'], ['hash', 'Hash & identify'], ['jwt', 'JWT']];
+const TB_TABS = [['codec', 'Encode / decode'], ['time', 'Time converter'], ['ids', 'ID → timestamp'], ['net', 'IP & CIDR'], ['domain', 'Domain & lookalikes'], ['hash', 'Hash & identify'], ['favicon', 'Favicon hash'], ['names', 'Name permutations'], ['jwt', 'JWT']];
 
 App.register({
   id: 'toolbox', label: 'Toolbox', icon: 'toolbox',
@@ -204,9 +204,9 @@ App.register({
     $('.tabs', el).onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) { tbState.tab = t.dataset.tab; App.refresh(); } };
     const body = $('#tbBody', el);
     const T = {
-      codec: renderCodec, time: renderTime, ids: renderIds, net: renderNet, domain: renderDomain, hash: renderHash, jwt: renderJwt,
+      codec: renderCodec, time: renderTime, ids: renderIds, net: renderNet, domain: renderDomain, hash: renderHash, jwt: renderJwt, favicon: renderFavicon, names: renderPermute,
     };
-    T[tbState.tab](body);
+    (T[tbState.tab] || renderCodec)(body);
   },
 });
 
