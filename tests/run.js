@@ -138,5 +138,10 @@ eq('hdr empty', parseEmailHeaders('not headers at all').headers.length, 0);
   const b = buildStix(c); eq('stix types', b.objects.map((o) => o.type), ['report', 'domain-name', 'ipv4-addr', 'relationship']); eq('stix rel', b.objects[3].relationship_type, 'resolves-to'); }
 ok('migrate adds new fields', Array.isArray(migrate({ cases: { q: { id: 'q', name: 'old', updated: '', entities: [] } }, activeCaseId: 'q' }).cases.q.hypotheses));
 `, ctx, { filename: 'lantern-bundle.js' });
+// ---- the offline cache list must cover every script and stylesheet the page loads
+{ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8'), sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+  const need = [...html.matchAll(/<script src="([^"]+)"|<link rel="stylesheet" href="([^"]+)"/g)].map((m) => m[1] || m[2]);
+  const missing = need.filter((f) => !sw.includes(`'${f}'`) || !fs.existsSync(path.join(root, f)));
+  ctx.eq('service worker caches every asset', missing, []); }
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

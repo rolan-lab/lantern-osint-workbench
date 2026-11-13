@@ -18,6 +18,22 @@ python -m http.server 8777 --bind 127.0.0.1
 Then open http://127.0.0.1:8777. Your cases live in that browser's local storage, and `file://` and
 `localhost` are separate stores. Use **Settings & data → Export full backup** to move between them.
 
+## Use it on your phone, tablet and other computers
+
+Lantern is plain static files, so any static host works. With GitHub Pages:
+
+1. In the repository go to **Settings → Pages**.
+2. Under *Build and deployment* choose **Deploy from a branch**, pick `main` and `/ (root)`, then **Save**.
+3. After a minute it is live at `https://<your-user>.github.io/<repo-name>/`.
+
+Open that address on any device. To install it like an app (own icon, full screen, works offline):
+**iPhone / iPad** — Safari → Share → *Add to Home Screen*. **Android** — Chrome → ⋮ → *Install app*.
+**Desktop Chrome / Edge** — the install icon in the address bar.
+
+- The hosted page is public, but it contains only the tool. **Your cases never leave the browser you created them in.**
+- For the same reason **cases do not sync between devices**: move them with **Settings & data → Export full backup / Import**.
+- The page asks search engines not to index it.
+
 ## Desktop app (Windows .exe)
 
 `dist\Lantern.exe` is a single-file Windows app (about 12 MB, no install). It opens Lantern in its own window using
@@ -88,6 +104,7 @@ js/metadata.js      file metadata parsers (JPEG/PNG/WebP/TIFF/PDF/OOXML/ODF/ZIP/
 js/views/*.js       one file per area
 js/app.js           bootstrap
 desktop/            Windows launcher (pywebview), icon generator, build.bat
+manifest.webmanifest, sw.js, icons/   install-to-home-screen and offline support for hosted copies
 tests/run.js        dependency-free tests for the pure logic — run with: node tests/run.js
 USER_MANUAL.md      the user manual
 dist/Lantern.exe    built desktop app

@@ -34,9 +34,23 @@ selector to a finished report.
 | **Browser, simplest** | Double-click `index.html`. Works in Chrome, Edge, Firefox and Safari. |
 | **Browser, localhost** | In the project folder run `python -m http.server 8777 --bind 127.0.0.1`, then open `http://127.0.0.1:8777`. |
 | **Windows desktop app** | Run `dist\Lantern.exe` (build it with `desktop\build.bat`; see the README). |
+| **Hosted, any device** | Publish the folder with GitHub Pages (README → *Use it on your phone, tablet and other computers*) and open the address on your phone, tablet or laptop. |
 
-Each of these keeps its **own separate data store**. A case created under `file://` is not visible under
-`localhost` or in the desktop app. Move cases between them with **Settings & data → Export full backup / Import**.
+Each of these — and each device and browser — keeps its **own separate data store**. A case created under
+`file://` is not visible under `localhost`, in the desktop app, or on another device using the hosted copy. Move cases between them with **Settings & data → Export full backup / Import**.
+
+### Install it on a phone or tablet
+
+On a hosted copy, Lantern can be installed like an app, with its own icon, and then works without a connection
+(Recon and pivot links still need one).
+
+- **iPhone / iPad:** open the address in Safari → Share → **Add to Home Screen**.
+- **Android:** open it in Chrome → ⋮ → **Install app** (or *Add to Home screen*).
+- **Desktop Chrome / Edge:** click the install icon in the address bar.
+
+On small screens the sidebar is behind the **☰** button. Cases do not sync between devices: export a backup on
+one and import it on the other. iOS may clear the data of a site you have not opened for several weeks unless it
+is installed to the Home Screen — install it, and keep backups.
 
 ### The screen
 
@@ -426,7 +440,7 @@ Good practice:
 
 | Problem | Cause and fix |
 |---|---|
-| My cases are gone | You opened Lantern from a different origin (`file://` vs `localhost` vs desktop app) or browser profile, or site data was cleared. Open it the same way as before, or import a backup. |
+| My cases are gone | You opened Lantern from a different origin (`file://` vs `localhost` vs desktop app vs hosted copy), device or browser profile, or site data was cleared. Open it the same way as before, or import a backup. |
 | "Save failed — browser storage may be full" | Export and delete closed cases. Long notes and very large entity lists are the usual cause. |
 | A Recon card says **Failed — Request blocked** | An ad-blocker, privacy extension, corporate proxy or the service itself blocked the request. Allow the service or use the manual link on the card. |
 | GitHub cards fail after several lookups | Anonymous GitHub API limits (60 requests per hour, 10 searches per minute). Wait a minute. |
@@ -435,6 +449,7 @@ Good practice:
 | Copy does nothing under `file://` | Some browsers restrict the clipboard on `file://`. Use the localhost method. |
 | Coordinates are "Unrecognised" | Put latitude first, and separate the two values with a comma or space. MGRS needs its zone and band, for example `31U DQ 48252 11954`. |
 | A wallet or IBAN is detected as a keyword | Its checksum failed — check for a typo or a missing character. |
+| The hosted copy does not show new features | It loads the newest files whenever you are online; reload once. If it still looks old, close every Lantern tab and reopen it. |
 | Desktop app does not show new features | Rebuild it with `desktop\build.bat` after updating the web files. |
 
 To confirm the logic is intact after changes, run `node tests/run.js` in the project folder.

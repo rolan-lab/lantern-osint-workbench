@@ -39,4 +39,7 @@
   });
 
   App.onHash();
+
+  // Hosted copies (https or localhost) become installable and work offline. Not available under file://.
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(() => { /* optional */ });
 })();
